@@ -43,7 +43,7 @@ allprojects {
         maven { url 'https://maven.fabric.io/public' }
 
         flatDir {
-            dirs 'libs'
+            dirs 'libs', '../../DroneKit-Android/ClientLib/build/outputs/aar'
         }
     }
 }
