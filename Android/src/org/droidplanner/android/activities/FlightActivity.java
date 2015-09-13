@@ -13,9 +13,11 @@ import android.support.v4.app.FragmentManager;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,6 +28,7 @@ import com.o3dr.android.client.Drone;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEventExtra;
 import com.o3dr.services.android.lib.drone.attribute.error.ErrorType;
+import com.o3dr.services.android.lib.gcs.event.GCSEvent;
 import com.sothree.slidinguppanel.SlidingUpPanelLayout;
 
 import org.droidplanner.android.R;
@@ -40,7 +43,7 @@ import org.droidplanner.android.utils.prefs.AutoPanMode;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FlightActivity extends DrawerNavigationUI {
-
+    private static final String TAG = FlightActivity.class.getSimpleName();
     private static final int GOOGLE_PLAY_SERVICES_REQUEST_CODE = 101;
 
     private static final String EXTRA_IS_ACTION_DRAWER_OPENED = "extra_is_action_drawer_opened";
@@ -104,6 +107,19 @@ public class FlightActivity extends DrawerNavigationUI {
             }
         }
     };
+
+    private final static IntentFilter gcsAttEventFilter = new IntentFilter();
+    static {
+        gcsAttEventFilter.addAction(GCSEvent.GCS_ATTITUDE_UPDATED);
+    }
+
+    private final BroadcastReceiver gcsAttEventReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+//            Log.e(TAG,"message received");
+            telemetryFragment.onGCSAttitudeUpdate();
+        }
+    };
+
 
     private final AtomicBoolean mSlidingPanelCollapsing = new AtomicBoolean(false);
 
@@ -203,6 +219,8 @@ public class FlightActivity extends DrawerNavigationUI {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_flight);
+
+        registerReceiver(gcsAttEventReceiver, gcsAttEventFilter);
 
         fragmentManager = getSupportFragmentManager();
 
@@ -530,5 +548,23 @@ public class FlightActivity extends DrawerNavigationUI {
                 handler.postDelayed(hideWarningView, WARNING_VIEW_DISPLAY_TIMEOUT);
                 break;
         }
+    }
+
+    @Override
+    public void onResume() {
+        registerReceiver(gcsAttEventReceiver, gcsAttEventFilter);
+        super.onResume();
+    }
+
+    @Override
+    public void onPause() {
+        //unregisterReceiver(gcsAttEventReceiver);
+        super.onPause();
+    }
+
+    @Override
+    public void onStop(){
+        unregisterReceiver(gcsAttEventReceiver);
+        super.onStop();
     }
 }

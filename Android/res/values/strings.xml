@@ -457,6 +457,14 @@
     <string name="horizontal_speed_telem">hs: %s</string>
     <string name="vertical_speed_empty">vs: —</string>
     <string name="vertical_speed_telem">vs: %s</string>
+
+    <string name="gcs_yaw_empty">Yaw: —</string>
+    <string name="gcs_yaw_telem">Yaw: %s</string>
+    <string name="gcs_pitch_empty">Pitch: —</string>
+    <string name="gcs_pitch_telem">Pitch: %s</string>
+    <string name="gcs_roll_empty">Roll: —</string>
+    <string name="gcs_roll_telem">Roll: %s</string>
+
     <string name="menu_kill_switch">Kill Switch</string>
     <string name="label_clear_selected">Clear selected</string>
     <string name="unsaved_param_warning">You have unsaved changes</string>

@@ -8,18 +8,24 @@ import android.content.SharedPreferences;
 import android.graphics.SurfaceTexture;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.o3dr.android.client.Drone;
+import com.o3dr.android.client.ControlTower;
 import com.o3dr.android.client.apis.CapabilityApi;
 import com.o3dr.android.client.apis.solo.SoloCameraApi;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
+
+import com.o3dr.services.android.lib.gcs.event.GCSEvent;
 import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.Speed;
 import com.o3dr.services.android.lib.model.AbstractCommandListener;
@@ -36,6 +42,9 @@ import timber.log.Timber;
 public class TelemetryFragment extends ApiListenerFragment {
 
     private static final String TAG = TelemetryFragment.class.getSimpleName();
+    private static final String ACTION_GCS_INIT_ATT_LOCKED = GCSEvent.GCS_INIT_ATTITUDE_LOCKED;
+    private long gcsAttLastUpdate = 0;
+    private static final int UPDATE_INTERVAL = 100;
 
     private final static IntentFilter eventFilter = new IntentFilter();
 
@@ -44,6 +53,7 @@ public class TelemetryFragment extends ApiListenerFragment {
         eventFilter.addAction(AttributeEvent.SPEED_UPDATED);
         eventFilter.addAction(AttributeEvent.STATE_CONNECTED);
     }
+
 
     private final BroadcastReceiver eventReceiver = new BroadcastReceiver() {
         @Override
@@ -74,6 +84,15 @@ public class TelemetryFragment extends ApiListenerFragment {
     private TextView horizontalSpeed;
     private TextView verticalSpeed;
 
+    private TextView gcsYaw;
+    private TextView gcsPitch;
+    private TextView gcsRoll;
+
+    private Button gcsGestureButton;
+    private Boolean gcsGestureButtonClicked = false;
+    private int orangeColor;
+    private int greyColor;
+
     private View videoContainer;
     private TextureView videoView;
 
@@ -84,12 +103,18 @@ public class TelemetryFragment extends ApiListenerFragment {
         View view = inflater.inflate(R.layout.fragment_telemetry, container, false);
         attitudeIndicator = (AttitudeIndicator) view.findViewById(R.id.aiView);
 
+        orangeColor = getResources().getColor(R.color.orange);
+        greyColor = getResources().getColor(R.color.light_grey);
         roll = (TextView) view.findViewById(R.id.rollValueText);
         yaw = (TextView) view.findViewById(R.id.yawValueText);
         pitch = (TextView) view.findViewById(R.id.pitchValueText);
 
         horizontalSpeed = (TextView) view.findViewById(R.id.horizontal_speed_telem);
         verticalSpeed = (TextView) view.findViewById(R.id.vertical_speed_telem);
+
+        gcsYaw = (TextView) view.findViewById(R.id.gcs_yaw_local);
+        gcsPitch = (TextView) view.findViewById(R.id.gcs_pitch_local);
+        gcsRoll = (TextView) view.findViewById(R.id.gcs_roll_local);
 
         videoContainer = view.findViewById(R.id.minimized_video_container);
         videoContainer.setVisibility(View.GONE);
@@ -102,6 +127,29 @@ public class TelemetryFragment extends ApiListenerFragment {
         });
 
         videoView = (TextureView) view.findViewById(R.id.minimized_video);
+
+        gcsGestureButton =(Button) view.findViewById(R.id.gcs_gesture_send);
+        gcsGestureButton.setBackgroundColor(greyColor);
+        gcsGestureButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch(event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        gcsGestureButton.setText("Sending");
+                        gcsGestureButton.setBackgroundColor(orangeColor);
+                        if (!gcsGestureButtonClicked) {
+                            getContext().sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
+                            gcsGestureButtonClicked=true;
+                        }
+                        break;
+                    case MotionEvent.ACTION_UP:
+                        gcsGestureButton.setText("Standby");
+                        gcsGestureButton.setBackgroundColor(greyColor);
+                        gcsGestureButtonClicked=false;
+                }
+                return false;
+            }
+        });
 
         return view;
     }
@@ -256,9 +304,29 @@ public class TelemetryFragment extends ApiListenerFragment {
         final double verticalSpeedValue = speed != null ? speed.getVerticalSpeed() : 0;
 
         final SpeedUnitProvider speedUnitProvider = getSpeedUnitProvider();
-
+//        Log.e(TAG, "speed updated");
         horizontalSpeed.setText(getString(R.string.horizontal_speed_telem, speedUnitProvider.boxBaseValueToTarget(groundSpeedValue).toString()));
         verticalSpeed.setText(getString(R.string.vertical_speed_telem, speedUnitProvider.boxBaseValueToTarget(verticalSpeedValue).toString()));
     }
 
+
+    public void onGCSAttitudeUpdate() {
+        long actualTime = System.currentTimeMillis();
+        if ((actualTime-gcsAttLastUpdate)>UPDATE_INTERVAL) {
+//        Attitude gcsAtt = intent.getParcelableExtra(GCSEvent.GCS_ATTITUDE_UPDATED);
+            final ControlTower tower = getControlTower();
+            Attitude gcsAtt = tower.getGCSAttitude();
+            final double R2D = 180.0 / Math.PI;
+            final double yawValue = gcsAtt != null ? gcsAtt.getYaw() * R2D : 0;
+            final double pitchValue = gcsAtt != null ? gcsAtt.getPitch() * R2D : 0;
+            final double rollValue = gcsAtt != null ? gcsAtt.getRoll() * R2D : 0;
+
+            final SpeedUnitProvider speedUnitProvider = getSpeedUnitProvider();
+//        Log.e(TAG, "gcs attitude updated");
+            gcsYaw.setText(getString(R.string.gcs_yaw_telem, speedUnitProvider.boxBaseValueToTarget(yawValue).toString()));
+            gcsPitch.setText(getString(R.string.gcs_pitch_telem, speedUnitProvider.boxBaseValueToTarget(pitchValue).toString()));
+            gcsRoll.setText(getString(R.string.gcs_roll_telem, speedUnitProvider.boxBaseValueToTarget(rollValue).toString()));
+            gcsAttLastUpdate = actualTime;
+        }
+    }
 }

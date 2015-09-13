@@ -276,6 +276,10 @@ public class DroidPlannerApp extends Application implements DroneListener, Tower
         return this.drone;
     }
 
+    public ControlTower getControlTower(){
+        return this.controlTower;
+    }
+
     public MissionProxy getMissionProxy() {
         return this.missionProxy;
     }

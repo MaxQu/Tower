@@ -9,6 +9,7 @@ import android.support.v4.app.Fragment;
 import android.support.v4.content.LocalBroadcastManager;
 
 import com.o3dr.android.client.Drone;
+import com.o3dr.android.client.ControlTower;
 
 import org.droidplanner.android.DroidPlannerApp;
 import org.droidplanner.android.fragments.SettingsFragment;
@@ -57,6 +58,10 @@ public abstract class ApiListenerFragment extends Fragment implements DroidPlann
 	protected Drone getDrone() {
 		return dpApp.getDrone();
 	}
+
+    protected ControlTower getControlTower() {
+        return dpApp.getControlTower();
+    }
 
 	protected LocalBroadcastManager getBroadcastManager() {
 		return broadcastManager;
