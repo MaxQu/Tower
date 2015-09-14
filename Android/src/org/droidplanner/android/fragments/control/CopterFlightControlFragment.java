@@ -12,6 +12,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.analytics.HitBuilders;
@@ -151,6 +152,11 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
     private View mArmedButtons;
     private View mInFlightButtons;
 
+    private TextView gcsYaw;
+    private TextView gcsPitch;
+    private TextView gcsRoll;
+
+
     private Button followBtn;
     private Button homeBtn;
     private Button landBtn;
@@ -162,6 +168,7 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
 
     private int orangeColor;
     private int greyColor;
+    private int whiteColor;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -174,6 +181,11 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
 
         orangeColor = getResources().getColor(R.color.orange);
         greyColor = getResources().getColor(R.color.light_grey);
+        whiteColor = getResources().getColor(R.color.white);
+
+        gcsYaw = (TextView) view.findViewById(R.id.gcs_yaw_local);
+        gcsPitch = (TextView) view.findViewById(R.id.gcs_pitch_local);
+        gcsRoll = (TextView) view.findViewById(R.id.gcs_roll_local);
 
         mDisconnectedButtons = view.findViewById(R.id.mc_disconnected_buttons);
         mDisarmedButtons = view.findViewById(R.id.mc_disarmed_buttons);
@@ -216,7 +228,7 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
         gcsGestureButton =(Button) view.findViewById(R.id.gcs_gesture_send);
         gcsGestureButton.setBackgroundColor(greyColor);
         gcsGestureButton.setOnTouchListener(null);//remove all previous listener
-        gcsGestureButton.setOnTouchListener(this);
+        gcsGestureButton.setOnTouchListener(this);//adding the new listener
 
     }
 
@@ -257,6 +269,9 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
                 case MotionEvent.ACTION_DOWN:
                     gcsGestureButton.setText("Sending");
                     gcsGestureButton.setBackgroundColor(orangeColor);
+                    gcsYaw.setBackgroundColor(orangeColor);
+                    gcsPitch.setBackgroundColor(orangeColor);
+                    gcsRoll.setBackgroundColor(orangeColor);
                     if (!gcsGestureButtonClicked) {
                         getContext().sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
                         gcsGestureButtonClicked = true;
@@ -264,8 +279,11 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
                     handler.postDelayed(sendGCSGestureRunnable, GCS_MSG_INTERVAL);
                     break;
                 case MotionEvent.ACTION_UP:
-                    gcsGestureButton.setText("Standby");
+                    gcsGestureButton.setText("Gesture");
                     gcsGestureButton.setBackgroundColor(greyColor);
+                    gcsYaw.setBackgroundColor(whiteColor);
+                    gcsPitch.setBackgroundColor(whiteColor);
+                    gcsRoll.setBackgroundColor(whiteColor);
                     gcsGestureButtonClicked = false;
                     handler.removeCallbacks(sendGCSGestureRunnable);
                     getDrone().sendRcOverride(4,1500);

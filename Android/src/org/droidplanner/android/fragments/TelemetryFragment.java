@@ -92,6 +92,7 @@ public class TelemetryFragment extends ApiListenerFragment {
     private Boolean gcsGestureButtonClicked = false;
     private int orangeColor;
     private int greyColor;
+    private int whiteColor;
 
     private View videoContainer;
     private TextureView videoView;
@@ -105,6 +106,7 @@ public class TelemetryFragment extends ApiListenerFragment {
 
         orangeColor = getResources().getColor(R.color.orange);
         greyColor = getResources().getColor(R.color.light_grey);
+        whiteColor = getResources().getColor(R.color.white);
         roll = (TextView) view.findViewById(R.id.rollValueText);
         yaw = (TextView) view.findViewById(R.id.yawValueText);
         pitch = (TextView) view.findViewById(R.id.pitchValueText);
@@ -137,14 +139,20 @@ public class TelemetryFragment extends ApiListenerFragment {
                     case MotionEvent.ACTION_DOWN:
                         gcsGestureButton.setText("Sending");
                         gcsGestureButton.setBackgroundColor(orangeColor);
+                        gcsYaw.setBackgroundColor(orangeColor);
+                        gcsPitch.setBackgroundColor(orangeColor);
+                        gcsRoll.setBackgroundColor(orangeColor);
                         if (!gcsGestureButtonClicked) {
                             getContext().sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
                             gcsGestureButtonClicked=true;
                         }
                         break;
                     case MotionEvent.ACTION_UP:
-                        gcsGestureButton.setText("Standby");
+                        gcsGestureButton.setText("Gesture");
                         gcsGestureButton.setBackgroundColor(greyColor);
+                        gcsYaw.setBackgroundColor(whiteColor);
+                        gcsPitch.setBackgroundColor(whiteColor);
+                        gcsRoll.setBackgroundColor(whiteColor);
                         gcsGestureButtonClicked=false;
                 }
                 return false;
