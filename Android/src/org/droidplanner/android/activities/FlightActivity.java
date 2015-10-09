@@ -28,7 +28,6 @@ import com.o3dr.android.client.Drone;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEventExtra;
 import com.o3dr.services.android.lib.drone.attribute.error.ErrorType;
-import com.o3dr.services.android.lib.gcs.event.GCSEvent;
 import com.sothree.slidinguppanel.SlidingUpPanelLayout;
 
 import org.droidplanner.android.R;
@@ -108,19 +107,9 @@ public class FlightActivity extends DrawerNavigationUI {
         }
     };
 
-    private final static IntentFilter gcsAttEventFilter = new IntentFilter();
-    static {
-        gcsAttEventFilter.addAction(GCSEvent.GCS_ATTITUDE_UPDATED);
+    public void activateGCSGestureButton() {
+        telemetryFragment.activateGCSGestureButton();
     }
-
-    private final BroadcastReceiver gcsAttEventReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-//            Log.e(TAG,"message received");
-            telemetryFragment.onGCSAttitudeUpdate();
-        }
-    };
-
-
     private final AtomicBoolean mSlidingPanelCollapsing = new AtomicBoolean(false);
 
     private final SlidingUpPanelLayout.PanelSlideListener mDisablePanelSliding = new
@@ -219,8 +208,6 @@ public class FlightActivity extends DrawerNavigationUI {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_flight);
-
-        registerReceiver(gcsAttEventReceiver, gcsAttEventFilter);
 
         fragmentManager = getSupportFragmentManager();
 
@@ -552,7 +539,6 @@ public class FlightActivity extends DrawerNavigationUI {
 
     @Override
     public void onResume() {
-        registerReceiver(gcsAttEventReceiver, gcsAttEventFilter);
         super.onResume();
     }
 
@@ -564,7 +550,6 @@ public class FlightActivity extends DrawerNavigationUI {
 
     @Override
     public void onStop(){
-        unregisterReceiver(gcsAttEventReceiver);
         super.onStop();
     }
 }

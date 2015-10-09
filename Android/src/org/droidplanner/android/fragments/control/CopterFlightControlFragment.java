@@ -6,13 +6,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.analytics.HitBuilders;
@@ -24,7 +21,6 @@ import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.property.GuidedState;
 import com.o3dr.services.android.lib.drone.property.State;
 import com.o3dr.services.android.lib.drone.property.VehicleMode;
-import com.o3dr.services.android.lib.gcs.event.GCSEvent;
 import com.o3dr.services.android.lib.gcs.follow.FollowState;
 import com.o3dr.services.android.lib.gcs.follow.FollowType;
 import com.o3dr.services.android.lib.model.SimpleCommandListener;
@@ -42,17 +38,15 @@ import org.droidplanner.android.proxy.mission.MissionProxy;
 import org.droidplanner.android.utils.analytics.GAUtils;
 import org.droidplanner.android.utils.prefs.DroidPlannerPrefs;
 
-import com.o3dr.services.android.lib.drone.property.Attitude;
-
 /**
  * Provide functionality for flight action button specific to copters.
  */
-public class CopterFlightControlFragment extends BaseFlightControlFragment implements  View.OnTouchListener{
+public class CopterFlightControlFragment extends BaseFlightControlFragment {
 
     private static final String TAG = CopterFlightControlFragment.class.getSimpleName();
 
     private static final String ACTION_FLIGHT_ACTION_BUTTON = "Copter flight action button";
-    private static final String ACTION_GCS_INIT_ATT_LOCKED = GCSEvent.GCS_INIT_ATTITUDE_LOCKED;
+
     private static final IntentFilter eventFilter = new IntentFilter();
 
     static {
@@ -152,23 +146,13 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
     private View mArmedButtons;
     private View mInFlightButtons;
 
-    private TextView gcsYaw;
-    private TextView gcsPitch;
-    private TextView gcsRoll;
-
-
     private Button followBtn;
     private Button homeBtn;
     private Button landBtn;
     private Button pauseBtn;
     private Button autoBtn;
 
-    private Button gcsGestureButton;
-    private Boolean gcsGestureButtonClicked = false;
-
     private int orangeColor;
-    private int greyColor;
-    private int whiteColor;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -180,12 +164,6 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
         super.onViewCreated(view, savedInstanceState);
 
         orangeColor = getResources().getColor(R.color.orange);
-        greyColor = getResources().getColor(R.color.light_grey);
-        whiteColor = getResources().getColor(R.color.white);
-
-        gcsYaw = (TextView) view.findViewById(R.id.gcs_yaw_local);
-        gcsPitch = (TextView) view.findViewById(R.id.gcs_pitch_local);
-        gcsRoll = (TextView) view.findViewById(R.id.gcs_roll_local);
 
         mDisconnectedButtons = view.findViewById(R.id.mc_disconnected_buttons);
         mDisarmedButtons = view.findViewById(R.id.mc_disarmed_buttons);
@@ -224,12 +202,6 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
 
         final Button dronieBtn = (Button) view.findViewById(R.id.mc_dronieBtn);
         dronieBtn.setOnClickListener(this);
-
-        gcsGestureButton =(Button) view.findViewById(R.id.gcs_gesture_send);
-        gcsGestureButton.setBackgroundColor(greyColor);
-        gcsGestureButton.setOnTouchListener(null);//remove all previous listener
-        gcsGestureButton.setOnTouchListener(this);//adding the new listener
-
     }
 
     @Override
@@ -248,48 +220,6 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
     public void onApiDisconnected() {
         super.onApiDisconnected();
         getBroadcastManager().unregisterReceiver(eventReceiver);
-    }
-
-    private final static int GCS_MSG_INTERVAL=100;
-    private Handler handler = new Handler();
-    private Runnable sendGCSGestureRunnable=new Runnable() {
-        @Override
-        public void run() {
-            Attitude gcsAtt = getControlTower().getGCSAttitude();
-            Attitude gcsAttLocked = getControlTower().getGCSAttitudeLocked();
-            getDrone().followGCSGesture(gcsAttLocked,gcsAtt);
-        }
-    };
-
-    @Override
-    public boolean onTouch(View v, MotionEvent event) {
-        switch (v.getId()) {
-            case R.id.gcs_gesture_send:
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_DOWN:
-                    gcsGestureButton.setText("Sending");
-                    gcsGestureButton.setBackgroundColor(orangeColor);
-                    gcsYaw.setBackgroundColor(orangeColor);
-                    gcsPitch.setBackgroundColor(orangeColor);
-                    gcsRoll.setBackgroundColor(orangeColor);
-                    if (!gcsGestureButtonClicked) {
-                        getContext().sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
-                        gcsGestureButtonClicked = true;
-                    }
-                    handler.postDelayed(sendGCSGestureRunnable, GCS_MSG_INTERVAL);
-                    break;
-                case MotionEvent.ACTION_UP:
-                    gcsGestureButton.setText("Gesture");
-                    gcsGestureButton.setBackgroundColor(greyColor);
-                    gcsYaw.setBackgroundColor(whiteColor);
-                    gcsPitch.setBackgroundColor(whiteColor);
-                    gcsRoll.setBackgroundColor(whiteColor);
-                    gcsGestureButtonClicked = false;
-                    handler.removeCallbacks(sendGCSGestureRunnable);
-                    getDrone().sendRcOverride(4,1500);
-            }
-        }
-        return false;
     }
 
     @Override
@@ -321,6 +251,7 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
 
             case R.id.mc_takeoff:
                 getTakeOffConfirmation();
+                ((FlightActivity) getActivity()).activateGCSGestureButton();
                 eventBuilder.setAction(ACTION_FLIGHT_ACTION_BUTTON).setLabel("Takeoff");
                 break;
 
@@ -348,6 +279,7 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
 
             case R.id.mc_TakeoffInAutoBtn:
                 getTakeOffInAutoConfirmation();
+                ((FlightActivity) getActivity()).activateGCSGestureButton();
                 eventBuilder.setAction(ACTION_FLIGHT_ACTION_BUTTON).setLabel(VehicleMode.COPTER_AUTO.getLabel());
                 break;
 
@@ -409,9 +341,9 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment imple
                 final double takeOffAltitude = getAppPrefs().getDefaultAltitude();
 
                 final Drone drone = getDrone();
-                VehicleApi.getApi(drone).takeoff(takeOffAltitude, new SimpleCommandListener(){
+                VehicleApi.getApi(drone).takeoff(takeOffAltitude, new SimpleCommandListener() {
                     @Override
-                    public void onSuccess(){
+                    public void onSuccess() {
                         VehicleApi.getApi(drone).setVehicleMode(VehicleMode.COPTER_AUTO);
                     }
                 });

@@ -7,6 +7,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.SurfaceTexture;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -76,6 +77,23 @@ public class TelemetryFragment extends ApiListenerFragment {
         }
     };
 
+    private final static IntentFilter gcsEventFilter = new IntentFilter();
+    static {
+        gcsEventFilter.addAction(GCSEvent.GCS_ATTITUDE_UPDATED);
+    }
+
+    private final BroadcastReceiver gcsEventReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            switch (action) {
+                case GCSEvent.GCS_ATTITUDE_UPDATED: // from GCS event
+                    onGCSAttitudeUpdate();
+                    break;
+            }
+        }
+    };
+
     private AttitudeIndicator attitudeIndicator;
     private TextView roll;
     private TextView yaw;
@@ -88,13 +106,19 @@ public class TelemetryFragment extends ApiListenerFragment {
     private TextView gcsPitch;
     private TextView gcsRoll;
 
+    private Attitude gcsAtt;
+    private Attitude gcsAttLocked;
+
     private Button gcsGestureButton;
     private Boolean gcsGestureButtonClicked = false;
+    private Boolean gcsGestureInitialized = false;
     private int orangeColor;
     private int greyColor;
     private int whiteColor;
+    private int greenColor;
 
     private View videoContainer;
+    private View gcsAttContainer;
     private TextureView videoView;
 
     private boolean headingModeFPV;
@@ -104,9 +128,6 @@ public class TelemetryFragment extends ApiListenerFragment {
         View view = inflater.inflate(R.layout.fragment_telemetry, container, false);
         attitudeIndicator = (AttitudeIndicator) view.findViewById(R.id.aiView);
 
-        orangeColor = getResources().getColor(R.color.orange);
-        greyColor = getResources().getColor(R.color.light_grey);
-        whiteColor = getResources().getColor(R.color.white);
         roll = (TextView) view.findViewById(R.id.rollValueText);
         yaw = (TextView) view.findViewById(R.id.yawValueText);
         pitch = (TextView) view.findViewById(R.id.pitchValueText);
@@ -114,9 +135,8 @@ public class TelemetryFragment extends ApiListenerFragment {
         horizontalSpeed = (TextView) view.findViewById(R.id.horizontal_speed_telem);
         verticalSpeed = (TextView) view.findViewById(R.id.vertical_speed_telem);
 
-        gcsYaw = (TextView) view.findViewById(R.id.gcs_yaw_local);
-        gcsPitch = (TextView) view.findViewById(R.id.gcs_pitch_local);
-        gcsRoll = (TextView) view.findViewById(R.id.gcs_roll_local);
+        gcsAttContainer= view.findViewById(R.id.gcs_attitude_widget);
+        if (gcsGestureInitialized==false){initGCSGestureButton(view);}
 
         videoContainer = view.findViewById(R.id.minimized_video_container);
         videoContainer.setVisibility(View.GONE);
@@ -130,48 +150,117 @@ public class TelemetryFragment extends ApiListenerFragment {
 
         videoView = (TextureView) view.findViewById(R.id.minimized_video);
 
-        gcsGestureButton =(Button) view.findViewById(R.id.gcs_gesture_send);
-        gcsGestureButton.setBackgroundColor(greyColor);
-        gcsGestureButton.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                switch(event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        gcsGestureButton.setText("Sending");
-                        gcsGestureButton.setBackgroundColor(orangeColor);
-                        gcsYaw.setBackgroundColor(orangeColor);
-                        gcsPitch.setBackgroundColor(orangeColor);
-                        gcsRoll.setBackgroundColor(orangeColor);
-                        if (!gcsGestureButtonClicked) {
-                            getContext().sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
-                            gcsGestureButtonClicked=true;
-                        }
-                        break;
-                    case MotionEvent.ACTION_UP:
-                        gcsGestureButton.setText("Gesture");
-                        gcsGestureButton.setBackgroundColor(greyColor);
-                        gcsYaw.setBackgroundColor(whiteColor);
-                        gcsPitch.setBackgroundColor(whiteColor);
-                        gcsRoll.setBackgroundColor(whiteColor);
-                        gcsGestureButtonClicked=false;
-                }
-                return false;
-            }
-        });
-
         return view;
     }
 
+
+    private void initGCSGestureButton(View view) {
+        if (getControlTower().hasGCSAccel() && getControlTower().hasGCSGyro()) {
+            gcsYaw = (TextView) view.findViewById(R.id.gcs_yaw_local);
+            gcsPitch = (TextView) view.findViewById(R.id.gcs_pitch_local);
+            gcsRoll = (TextView) view.findViewById(R.id.gcs_roll_local);
+
+            orangeColor = getResources().getColor(R.color.orange);
+            greyColor = getResources().getColor(R.color.light_grey);
+            whiteColor = getResources().getColor(R.color.white);
+
+            gcsGestureButton = (Button) view.findViewById(R.id.gcs_gesture_send);
+            gcsGestureButton.setBackgroundColor(greyColor);
+            gcsGestureButton.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_DOWN:
+                            gcsGestureButton.setText("Sending");
+                            gcsGestureButton.setBackgroundColor(orangeColor);
+                            gcsYaw.setBackgroundColor(greyColor);
+                            gcsPitch.setBackgroundColor(greyColor);
+                            gcsRoll.setBackgroundColor(greyColor);
+                            if (!gcsGestureButtonClicked) {
+                                getContext().sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
+                                gcsGestureButtonClicked = true;
+                            }
+                            break;
+                        case MotionEvent.ACTION_UP:
+                            gcsGestureButton.setText("Gesture");
+                            gcsGestureButton.setBackgroundColor(greyColor);
+                            gcsYaw.setBackgroundColor(whiteColor);
+                            gcsPitch.setBackgroundColor(whiteColor);
+                            gcsRoll.setBackgroundColor(whiteColor);
+                            gcsGestureButtonClicked = false;
+                    }
+                    return false;
+                }
+            });
+            gcsAttContainer.setVisibility(View.VISIBLE);
+            gcsGestureInitialized = true;
+        } else {
+            gcsAttContainer.setVisibility(View.GONE);
+        }
+    }
+
+    public Boolean isGCSGestureInitialized() {
+        return gcsGestureInitialized;
+    }
+
+    private final static int GCS_MSG_INTERVAL=1000;
+    private Handler handler = new Handler();
+    private Runnable sendGCSGestureRunnable=new Runnable() {
+        @Override
+        public void run() {
+            getDrone().followGCSGesture(gcsAttLocked,gcsAtt,true);
+            handler.postDelayed(this, GCS_MSG_INTERVAL);
+        }
+    };
+
+    public void activateGCSGestureButton() {
+        if (gcsGestureInitialized) {
+            greenColor = getResources().getColor(R.color.green);
+            gcsGestureButton.setOnTouchListener(null);//nullify all previous listeners
+            gcsGestureButton.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_DOWN:
+                            gcsGestureButton.setText("Sending");
+                            gcsGestureButton.setBackgroundColor(greenColor);
+                            gcsYaw.setBackgroundColor(greyColor);
+                            gcsPitch.setBackgroundColor(greyColor);
+                            gcsRoll.setBackgroundColor(greyColor);
+                            if (!gcsGestureButtonClicked) {
+                                getContext().sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
+                                gcsGestureButtonClicked = true;
+                            }
+                            //getDrone().followGCSGesture(gcsAttLocked, gcsAtt,true);//send one gesture data right away
+                            //handler.postDelayed(sendGCSGestureRunnable, GCS_MSG_INTERVAL);
+                            sendGCSGestureRunnable.run();
+                            break;
+                        case MotionEvent.ACTION_UP:
+                            gcsGestureButton.setText("Gesture");
+                            gcsGestureButton.setBackgroundColor(greyColor);
+                            gcsYaw.setBackgroundColor(whiteColor);
+                            gcsPitch.setBackgroundColor(whiteColor);
+                            gcsRoll.setBackgroundColor(whiteColor);
+                            gcsGestureButtonClicked = false;
+                            handler.removeCallbacks(sendGCSGestureRunnable);
+                            getDrone().sendRcOverride(4, 0);// cancel the override value
+                    }
+                    return false;
+                }
+            });
+        }
+    }
     @Override
     public void onStart() {
         super.onStart();
-
+        getActivity().registerReceiver(gcsEventReceiver, gcsEventFilter);
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
         headingModeFPV = prefs.getBoolean("pref_heading_mode", false);
     }
 
     @Override
     public void onApiConnected() {
+        initGCSGestureButton(this.getView());
         updateAllTelem();
         getBroadcastManager().registerReceiver(eventReceiver, eventFilter);
     }
@@ -189,6 +278,12 @@ public class TelemetryFragment extends ApiListenerFragment {
     }
 
     @Override
+    public void onDestroy() {
+        super.onDestroy();
+        getActivity().unregisterReceiver(gcsEventReceiver);
+    }
+
+    @Override
     public void onApiDisconnected() {
         tryStoppingVideoStream();
         getBroadcastManager().unregisterReceiver(eventReceiver);
@@ -197,6 +292,7 @@ public class TelemetryFragment extends ApiListenerFragment {
     private void updateAllTelem() {
         onOrientationUpdate();
         onSpeedUpdate();
+        onGCSAttitudeUpdate();
         tryStreamingVideo();
     }
 
@@ -320,17 +416,18 @@ public class TelemetryFragment extends ApiListenerFragment {
 
     public void onGCSAttitudeUpdate() {
         long actualTime = System.currentTimeMillis();
+        //only change the display
         if ((actualTime-gcsAttLastUpdate)>UPDATE_INTERVAL) {
-//        Attitude gcsAtt = intent.getParcelableExtra(GCSEvent.GCS_ATTITUDE_UPDATED);
-            final ControlTower tower = getControlTower();
-            Attitude gcsAtt = tower.getGCSAttitude();
+//          Attitude gcsAtt = intent.getParcelableExtra(GCSEvent.GCS_ATTITUDE_UPDATED);
+            gcsAtt = getControlTower().getGCSAttitude();
+            gcsAttLocked = getControlTower().getGCSAttitudeLocked();
             final double R2D = 180.0 / Math.PI;
             final double yawValue = gcsAtt != null ? gcsAtt.getYaw() * R2D : 0;
             final double pitchValue = gcsAtt != null ? gcsAtt.getPitch() * R2D : 0;
             final double rollValue = gcsAtt != null ? gcsAtt.getRoll() * R2D : 0;
 
             final SpeedUnitProvider speedUnitProvider = getSpeedUnitProvider();
-//        Log.e(TAG, "gcs attitude updated");
+//          Log.e(TAG, "gcs attitude updated");
             gcsYaw.setText(getString(R.string.gcs_yaw_telem, speedUnitProvider.boxBaseValueToTarget(yawValue).toString()));
             gcsPitch.setText(getString(R.string.gcs_pitch_telem, speedUnitProvider.boxBaseValueToTarget(pitchValue).toString()));
             gcsRoll.setText(getString(R.string.gcs_roll_telem, speedUnitProvider.boxBaseValueToTarget(rollValue).toString()));
