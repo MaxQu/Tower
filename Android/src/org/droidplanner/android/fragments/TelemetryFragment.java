@@ -233,6 +233,12 @@ public class TelemetryFragment extends ApiListenerFragment {
                             }
                             //getDrone().followGCSGesture(gcsAttLocked, gcsAtt,true);//send one gesture data right away
                             //handler.postDelayed(sendGCSGestureRunnable, GCS_MSG_INTERVAL);
+                            try {
+                                Thread.sleep(100);                 //100 milliseconds is 0.1 second.
+                            } catch(InterruptedException ex) {
+                                Thread.currentThread().interrupt();
+                            }
+
                             sendGCSGestureRunnable.run();
                             break;
                         case MotionEvent.ACTION_UP:
@@ -243,7 +249,9 @@ public class TelemetryFragment extends ApiListenerFragment {
                             gcsRoll.setBackgroundColor(whiteColor);
                             gcsGestureButtonClicked = false;
                             handler.removeCallbacks(sendGCSGestureRunnable);
-                            getDrone().sendRcOverride(4, 0);// cancel the override value
+                            Attitude zeroAtt=new Attitude(0,0,0);
+                            getDrone().followGCSGesture(zeroAtt,zeroAtt,true);
+                            getDrone().sendRcOverride(4, 0);// cancel the yaw rc override value
                     }
                     return false;
                 }
