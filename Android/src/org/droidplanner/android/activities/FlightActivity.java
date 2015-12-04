@@ -110,6 +110,11 @@ public class FlightActivity extends DrawerNavigationUI {
     public void activateGCSGestureButton() {
         telemetryFragment.activateGCSGestureButton();
     }
+
+    public void deactivateGCSGestureButton() {
+        telemetryFragment.deactivateGCSGestureButton();
+    }
+
     private final AtomicBoolean mSlidingPanelCollapsing = new AtomicBoolean(false);
 
     private final SlidingUpPanelLayout.PanelSlideListener mDisablePanelSliding = new

@@ -68,7 +68,11 @@ public class CopterFlightControlFragment extends BaseFlightControlFragment {
             switch (action) {
                 case AttributeEvent.STATE_ARMING:
                 case AttributeEvent.STATE_CONNECTED:
+                    ((FlightActivity) getActivity()).activateGCSGestureButton();
+
                 case AttributeEvent.STATE_DISCONNECTED:
+                    ((FlightActivity) getActivity()).deactivateGCSGestureButton();
+
                 case AttributeEvent.STATE_UPDATED:
                     setupButtonsByFlightState();
                     break;

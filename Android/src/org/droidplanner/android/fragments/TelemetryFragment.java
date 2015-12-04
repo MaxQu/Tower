@@ -112,6 +112,8 @@ public class TelemetryFragment extends ApiListenerFragment {
     private Button gcsGestureButton;
     private Boolean gcsGestureButtonClicked = false;
     private Boolean gcsGestureInitialized = false;
+    private Boolean gcsGestureActivated = false;
+
     private int orangeColor;
     private int greyColor;
     private int whiteColor;
@@ -194,6 +196,7 @@ public class TelemetryFragment extends ApiListenerFragment {
             });
             gcsAttContainer.setVisibility(View.VISIBLE);
             gcsGestureInitialized = true;
+            gcsGestureActivated = false;
         } else {
             gcsAttContainer.setVisibility(View.GONE);
         }
@@ -214,7 +217,7 @@ public class TelemetryFragment extends ApiListenerFragment {
     };
 
     public void activateGCSGestureButton() {
-        if (gcsGestureInitialized) {
+        if ((gcsGestureInitialized) && (!gcsGestureActivated)) {
             greenColor = getResources().getColor(R.color.green);
             gcsGestureButton.setOnTouchListener(null);//nullify all previous listeners
             gcsGestureButton.setOnTouchListener(new View.OnTouchListener() {
@@ -256,6 +259,14 @@ public class TelemetryFragment extends ApiListenerFragment {
                     return false;
                 }
             });
+            gcsGestureActivated = true;
+        }
+    }
+
+    public void deactivateGCSGestureButton() {
+        if (gcsGestureActivated) {
+            gcsGestureButton.setOnTouchListener(null);//nullify all previous listeners
+            initGCSGestureButton(this.getView());//initialize it
         }
     }
     @Override
